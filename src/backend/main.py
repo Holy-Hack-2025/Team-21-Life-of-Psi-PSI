@@ -1,111 +1,99 @@
-from fastapi import FastAPI, HTTPException, Header, Depends
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from models import portfolio_db
 from pydantic import BaseModel
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-import os
-import hashlib
-import time 
+from tools import logger, call_openai_api
+from backend.handle_file import extract_text_from_file, add_to_qdrant, query
+import asyncio
 
 app = FastAPI()
 
-class EmailData(BaseModel):
-    from_email: str
-    subject: str
-    body: str
+class Conversation(BaseModel):
+    conversation_id: str
+    message: str
 
-class PortfolioItem(BaseModel):
-    title: str
-    description: str
-    image: str
-    link: str   
-
-class LoginData(BaseModel):
-    password: str
+class FileItem(BaseModel):
+    file_name: str
+    file_data: bytes
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", 'http://localhost/', "http://64.226.78.105/", "http://134.58.253.20/", "http://104.248.246.183/", "https://104.248.246.183/"],    allow_credentials=True,
+    allow_origins=["*"],
     allow_methods=["*"],  
     allow_headers=["*"],  
 )
 
-# Pretend we have a hashed admin password in .env
-ADMIN_HASH = os.getenv("ADMIN_HASH")
-SECRET_KEY = os.getenv("SECRET_KEY")  # load from .env in real usage
-ALGORITHM = "HS256"
+# Dummy generator simulating a constantly streaming API.
+async def dummy_api_stream():
+    while True:
+        # For testing, change 'good' to 'bad' to trigger the alert.
+        data = {"value": "good"}  
+        yield data
+        await asyncio.sleep(1)  # simulate delay between data messages
 
-def create_access_token(data: dict, expires_in: int = 900) -> str:
-    """
-    Creates a JWT with payload `data` that expires in `expires_in` seconds (default 15 min).
-    """
-    payload = data.copy()
-    # Set expiration time
-    expire = int(time.time()) + expires_in
-    payload.update({"exp": expire})
+async def monitor_and_push():
+    async for data in dummy_api_stream():
+        # Define your "bad" condition here.
+        if data["value"] == "bad":
+            alert_message = f"Bad data detected: {data}"
+            # Send the alert to all connected clients.
+            for connection in active_connections:
+                await connection.send_text(alert_message)
 
-    token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
-    return token
-
-@app.post("/admin/login")
-def admin_login(data: LoginData):
-    # Simple check: hash the incoming password and compare to stored hash
-    hashed_input = hashlib.sha256(data.password.encode()).hexdigest()
-    if hashed_input != ADMIN_HASH:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-
-    # Credentials are valid -> create token
-    token_data = {"sub": 'admin'}  # "subject" = user
-    access_token = create_access_token(token_data, expires_in=900)  # 15 min
-    return {"access_token": access_token, "token_type": "bearer"}
+@app.on_event("startup")
+async def startup_event():
+    # Schedule the monitor task to run concurrently
+    asyncio.create_task(monitor_and_push())
 
 
-security = HTTPBearer()  # Bearer token scheme
 
-def verify_token(token: str):
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        # 'sub' is the subject (username)
-        return payload["sub"]
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+@app.post("/get_openai_answer")
+async def get_openai_answer(item: Conversation):
+    conversation_id = item.conversation_id
+    message = item.message
 
+    if conversation_id:
+        db_conversation = portfolio_db.get(conversation_id)
+        if db_conversation:
+            conversation = db_conversation.append({"role": "user", "content": item.message})
+        else:
+            conversation = [
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": message}]  
+            
+        context = query(message, 'text_collection')
+        conversation.append({"role": "system", "content": f'Use the following context: {context}'})
 
-@app.get("/portfolios")
-def get_portfolios():
-    return {"data": portfolio_db.get_all()}
+        openai_response = await call_openai_api(conversation)
+        result = conversation.append({"role": "assistant", "content": openai_response})
+        return result
+    else:
+        logger.info("The conversation_id is not provided")
 
-@app.post("/portfolios")
-def create_portfolio(item: PortfolioItem, creds: HTTPAuthorizationCredentials = Depends(security)):
-    token = creds.credentials  # Bearer token string
-    user = verify_token(token)  # raises 401 on failure
-    portfolio_db.insert(item.title, item.description, item.image, item.link)
+    portfolio_db.insert(conversation)
     return {"message": "Portfolio item added successfully"}
 
-@app.put("/portfolios/{id}")
-def update_portfolio(id: str, item: PortfolioItem, creds: HTTPAuthorizationCredentials = Depends(security)):
-    token = creds.credentials  # Bearer token string
-    user = verify_token(token)  # raises 401 on failure
-    success = portfolio_db.update(id, item.title, item.description, item.image, item.link)
-    if success:
-        return {"message": "Portfolio item updated"}
-    raise HTTPException(status_code=404, detail="Portfolio item not found")
+@app.post("/add_data")
+async def add_data(item: FileItem):
+    file_data = item.file_data
+    file_name = item.file_name
+    file_text = extract_text_from_file(file_data)
+    result = add_to_qdrant(text=file_text, source=file_name, collection_name="text_collection")
+    return {"message": "Data added successfully"}
 
-@app.delete("/portfolios/{id}")
-def delete_portfolio(id: str, creds: HTTPAuthorizationCredentials = Depends(security)):
-    token = creds.credentials  # Bearer token string
-    user = verify_token(token)  # raises 401 on failure
-    success = portfolio_db.delete(id)
-    if success:
-        return {"message": "Portfolio item deleted"}
-    raise HTTPException(status_code=404, detail="Portfolio item not found")
+# Store active WebSocket connections
+active_connections = []
 
-@app.post("/send-email")
-def send_email(email_data: EmailData):
-    send_email_func(email_data.from_email, email_data.subject, email_data.body)
-    return {"message": "Email sent successfully"}
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    active_connections.append(websocket)
+    try:
+        while True:
+            # You can wait for messages from the client if needed.
+            await websocket.receive_text()  # This keeps the connection alive.
+    except WebSocketDisconnect:
+        active_connections.remove(websocket)
 
 if __name__ == "__main__":
     import uvicorn
