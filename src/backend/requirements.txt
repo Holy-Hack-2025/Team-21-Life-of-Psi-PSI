@@ -15,3 +15,4 @@ google-generativeai
 psycopg2-binary
 pandas
 uvicorn 
+fastapi

@@ -1,6 +1,6 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from models import portfolio_db
+from .models import portfolio_db
 from pydantic import BaseModel
 from tools import logger, call_openai_api
 from backend.handle_file import extract_text_from_file, add_to_qdrant, query
@@ -46,7 +46,6 @@ async def startup_event():
     asyncio.create_task(monitor_and_push())
 
 
-
 @app.post("/get_openai_answer")
 async def get_openai_answer(item: Conversation):
     conversation_id = item.conversation_id
@@ -55,18 +54,20 @@ async def get_openai_answer(item: Conversation):
     if conversation_id:
         db_conversation = portfolio_db.get(conversation_id)
         if db_conversation:
-            conversation = db_conversation.append({"role": "user", "content": item.message})
+            db_conversation.append({"role": "user", "content": item.message})
+            conversation = db_conversation
         else:
             conversation = [
                 {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": message}]  
-            
+                {"role": "user", "content": message}
+            ]
         context = query(message, 'text_collection')
         conversation.append({"role": "system", "content": f'Use the following context: {context}'})
 
         openai_response = await call_openai_api(conversation)
-        result = conversation.append({"role": "assistant", "content": openai_response})
-        return result
+        conversation.append({"role": "assistant", "content": openai_response})
+        return conversation
+
     else:
         logger.info("The conversation_id is not provided")
 

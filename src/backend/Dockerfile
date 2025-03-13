@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y \
       libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /project\
+WORKDIR /project
 
 
 # Copy requirements and install them
@@ -23,4 +23,4 @@ COPY . .
 EXPOSE 8080
 
 # Command to run your bot, adjust as needed.
-CMD ["python", "-m", "app.main"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

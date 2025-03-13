@@ -45,11 +45,11 @@ class Conversations:
     def insert(self, conversation):
         with self.conn.cursor() as cursor:
             cursor.execute('''
-                INSERT INTO public.chat_conversations (conversation)
+                INSERT INTO public.conversation (conversation)
                 VALUES (%s)
                 RETURNING id;
-            ''', (psycopg2.extras.Json(conversation)))
-            new_id = cursor.fetchone()[0]
+            ''', (psycopg2.extras.Json(conversation),))
+        new_id = cursor.fetchone()[0]
         self.conn.commit()
         return new_id
 
