@@ -6,7 +6,6 @@ import { Ban, Code2, Loader2, Terminal } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { FilePreview } from "@/components/ui/file-preview"
-import { MarkdownRenderer } from "@/components/ui/markdown-renderer"
 
 const chatBubbleVariants = cva(
   "group/message relative break-words rounded-lg p-3 text-sm sm:max-w-[70%]",
@@ -95,7 +94,6 @@ export interface ChatMessageProps extends Message {
 
 export const ChatMessage: React.FC<ChatMessageProps> = ({
   role,
-  content,
   createdAt,
   showTimeStamp = false,
   animation = "scale",
@@ -134,9 +132,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
       ) : null}
 
       <div className={cn(chatBubbleVariants({ isUser, animation }), className)}>
-        <div>
-          <MarkdownRenderer>{content}</MarkdownRenderer>
-        </div>
+
 
         {role === "assistant" && actions ? (
           <div className="absolute -bottom-4 right-2 flex space-x-1 rounded-lg border bg-background p-1 text-foreground opacity-0 transition-opacity group-hover/message:opacity-100">

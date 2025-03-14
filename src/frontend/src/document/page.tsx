@@ -2,8 +2,8 @@
 
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
 import { Button } from '@/components/ui/button'
+import {useForm} from "react-hook-form"
 import {
   Form,
   FormField,
@@ -15,7 +15,6 @@ import {
 import { Input } from '@/components/ui/input'
 import { Upload } from 'lucide-react'
 import axios from 'axios'
-
 const formSchema = z.object({
   filename: z.string().min(5).max(50),
   file: z.any(),
@@ -76,27 +75,28 @@ const Document = () => {
               )
             }}
           />
-          <FormField
-            control={form.control}
-            name='file'
-            render={({ field }) => {
-              return (
-                <FormItem>
-                  <FormLabel className='text-gray-500 font-normal mt-5 mb-2'>
-                    FILE
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      className='w-4xl h-[60px]'
-                      type='file'
-                      {...fileRef}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )
-            }}
-          />
+        <FormField
+          control={form.control}
+          name="file"
+          render={({ field: _field }) => {
+            return (
+              <FormItem>
+                <FormLabel className="text-gray-500 font-normal mt-5 mb-2">
+                  FILE
+                </FormLabel>
+                <FormControl>
+                  <Input
+                    className="w-4xl h-[60px]"
+                    type="file"
+                    {...fileRef}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )
+          }}
+        />
+
           <Button className='mt-5 w-4xl h-[60px]' type='submit'>
             <Upload />
             <span className='ml-3'>Upload file</span>
