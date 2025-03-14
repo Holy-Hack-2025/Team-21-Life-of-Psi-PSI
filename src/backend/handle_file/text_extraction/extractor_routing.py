@@ -28,11 +28,11 @@ def extract_text_from_file(file_bytes):
     elif file_ext == 'application/vnd.openxmlformats-officedocument.presentationml.presentation':
         return get_pptx_text(file_bytes)
     
-    elif file_ext == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+    elif file_ext == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' or file_ext == 'text/plain':
         return getText(file_bytes)
     
-    elif file_ext in ['image/jpeg', 'image/png']:
-        return get_text_from_image(file_bytes)
+    # elif file_ext in ['image/jpeg', 'image/png']:
+    #     return get_text_from_image(file_bytes)
     
     else:
         return "Unsupported file type"
@@ -49,8 +49,8 @@ def extract_zip(input_zip):
     input_zip=ZipFile(input_zip)
     return {name: input_zip.read(name) for name in input_zip.namelist()}
 
-def get_text_from_image(image_files):
-    return getWhatonImage_celery.delay(image_files).get()
+# def get_text_from_image(image_files):
+#     return getWhatonImage_celery.delay(image_files).get()
 
 # def get_pdf_text(pdf_files):
 #     text = ""

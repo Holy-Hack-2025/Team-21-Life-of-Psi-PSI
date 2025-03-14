@@ -81,11 +81,11 @@ async def get_openai_answer(item: Conversation):
     return {
         "message": "Response generated successfully",
         "answer": openai_response,
-        "conversation_id": conversation_id
+        "conversation_id": conversation_id,
+        'context': context
     }
 
 
-# Adjust the endpoint to accept a file upload.
 @app.post("/add_data")
 async def add_data(
     file: UploadFile = File(...),
@@ -95,16 +95,17 @@ async def add_data(
         file_data = await file.read()
     except Exception as e:
         raise HTTPException(status_code=400, detail="Error reading file")
-    
-    # Optionally, if your file might not be UTF-8 encoded, you can modify extract_text_from_file
-    # to decode with errors='ignore' or use another encoding.
+
+    # Adjust the extraction function to ignore errors in decoding.
     try:
-        file_text = extract_text_from_file(file_data)
+        # Example: decode with errors ignored (modify extract_text_from_file accordingly)
+        file_text = file_data.decode("utf-8", errors="ignore")
     except Exception as e:
         raise HTTPException(status_code=400, detail="Error extracting text from file")
-    
+
     result = add_to_qdrant(text=file_text, source=file_name, collection_name="text_collection")
     return {"message": "Data added successfully"}
+
 
 @app.post("/delete_data")
 async def delete_data(item: FileItem):
@@ -114,34 +115,57 @@ async def delete_data(item: FileItem):
 
 active_connections = []
 
-# 1. Function to generate random data for each component
+bad_mode = False
+bad_mode_counter = 0
+
 def generate_component_data():
     """
     Returns a dictionary of simulated metrics for each major component
-    in an integrated steelmaking process.
+    in an integrated steelmaking process. Bad mode is triggered with a 30% chance
+    and persists for a few iterations.
     """
+    global bad_mode, bad_mode_counter
+
+    # Check if we're in bad mode.
+    if bad_mode:
+        # Decrement the counter and exit bad mode when it expires.
+        bad_mode_counter -= 1
+        if bad_mode_counter <= 0:
+            bad_mode = False
+    else:
+        # With 30% chance, trigger bad mode (persisting 3 to 6 iterations).
+        if random.random() < 0.3:
+            bad_mode = True
+            bad_mode_counter = random.randint(3, 6)
+
+    # If bad mode, force blast furnace temperature above threshold.
+    if bad_mode:
+        bf_temperature = round(random.uniform(1551, 1650), 1)
+    else:
+        bf_temperature = round(random.uniform(1400, 1600), 1)
+
     return {
         "coke_ovens": {
             "temperature": round(random.uniform(900, 1200), 1),   # °C
-            "coke_output_tph": round(random.uniform(20, 50), 1),  # tons/hour
-            "cog_flow": round(random.uniform(5000, 8000), 1),     # Nm³/hr
+            "coke_output_tph": round(random.uniform(20, 50), 1),    # tons/hour
+            "cog_flow": round(random.uniform(5000, 8000), 1),       # Nm³/hr
         },
         "blast_furnace": {
-            "hot_metal_tph": round(random.uniform(100, 300), 1),  # tons/hour
-            "top_gas_pressure": round(random.uniform(2, 5), 2),   # bar
-            "bf_temperature": round(random.uniform(1400, 1600), 1), # °C
+            "hot_metal_tph": round(random.uniform(100, 300), 1),   # tons/hour
+            "top_gas_pressure": round(random.uniform(2, 5), 2),    # bar
+            "bf_temperature": bf_temperature,                      # °C; may be high in bad mode.
         },
         "stoves": {
-            "stove_temp": round(random.uniform(800, 1200), 1),    # °C
-            "fuel_gas_flow": round(random.uniform(2000, 5000), 1),# Nm³/hr
+            "stove_temp": round(random.uniform(800, 1200), 1),     # °C
+            "fuel_gas_flow": round(random.uniform(2000, 5000), 1), # Nm³/hr
         },
         "sinter_plant": {
             "sinter_output_tph": round(random.uniform(50, 150), 1), # tons/hour
-            "bed_temp": round(random.uniform(1000, 1300), 1),     # °C
+            "bed_temp": round(random.uniform(1000, 1300), 1),       # °C
         },
         "lime_plant": {  # renamed from "lime_kiln"
             "lime_plant_temperature": round(random.uniform(900, 1100), 1),
-            "kiln_temp": round(random.uniform(900, 1100), 1),     # °C
+            "kiln_temp": round(random.uniform(900, 1100), 1),       # °C
         },
         "bos": {
             "steel_output_tph": round(random.uniform(120, 300), 1), # tons/hour
@@ -161,6 +185,7 @@ def generate_component_data():
             "stover_temperature": round(random.uniform(100, 300), 1)
         }
     }
+
 
 # 2. HTTP endpoint: returns one "snapshot" of the data
 @app.get("/process_data")

@@ -1,75 +1,79 @@
 // Chat.tsx
 import React, { useState } from "react";
 
-// Define a simple Message type
+// Define a simple Message type with an optional context field as a string.
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
+  context?: string;
 }
 
 const Chat: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
+  // A state mapping message id to a boolean indicating if context is shown.
+  const [shownContexts, setShownContexts] = useState<{ [id: string]: boolean }>({});
 
-  // Handle the change in the textarea
+  // Handle textarea changes.
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
   };
 
-  // Handle form submission: send the message to backend and update the messages list.
+  // Toggle context visibility for a given message.
+  const toggleContext = (id: string) => {
+    setShownContexts((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  // Handle form submission: send the message to backend and update messages.
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
 
-    // Create the user's message
+    // Create the user's message.
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
       content: input,
     };
 
-    // Update state with the new user message
     setMessages((prev) => [...prev, userMessage]);
 
-    // Prepare payload for the backend
-    // Note: In this simple example, we send conversation_id as null (new conversation).
+    // Prepare payload for the backend.
     const payload = {
       conversation_id: null,
       message: input,
     };
 
-    // Clear the input and set loading
     setInput("");
     setLoading(true);
 
     try {
       const response = await fetch("http://localhost:8000/get_openai_answer", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-
-      if (!response.ok) {
-        throw new Error(`Server error: ${response.status}`);
-      }
-
+      if (!response.ok) throw new Error(`Server error: ${response.status}`);
       const data = await response.json();
 
-      // Assume the backend returns an object with an "answer" field
+      // Ensure context is stored as a string.
+      const contextText =
+        data.context && typeof data.context !== "string"
+          ? JSON.stringify(data.context, null, 2)
+          : data.context;
+
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
         content: data.answer,
+        context: contextText,
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
       console.error("Error fetching assistant response:", error);
-      // Optionally, add an error message to the chat
       const errorMessage: Message = {
         id: (Date.now() + 2).toString(),
         role: "assistant",
@@ -103,8 +107,48 @@ const Chat: React.FC = () => {
         }}
       >
         {messages.map((msg) => (
-          <div key={msg.id} style={{ marginBottom: "0.75rem" }}>
+          <div
+            key={msg.id}
+            style={{
+              marginBottom: "0.75rem",
+              border: "1px solid #eee",
+              padding: "0.5rem",
+              borderRadius: "4px",
+            }}
+          >
             <strong>{msg.role}:</strong> {msg.content}
+            {msg.role === "assistant" && msg.context && (
+              <div style={{ marginTop: "0.5rem" }}>
+                <button
+                  onClick={() => toggleContext(msg.id)}
+                  style={{
+                    padding: "0.25rem 0.5rem",
+                    fontSize: "0.9rem",
+                    cursor: "pointer",
+                    backgroundColor: "#007bff",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "4px",
+                  }}
+                >
+                  {shownContexts[msg.id] ? "Hide Context" : "Show Context"}
+                </button>
+                {shownContexts[msg.id] && (
+                  <pre
+                    style={{
+                      marginTop: "0.5rem",
+                      padding: "0.5rem",
+                      backgroundColor: "#f8f9fa",
+                      border: "1px solid #ddd",
+                      borderRadius: "4px",
+                      whiteSpace: "pre-wrap",
+                    }}
+                  >
+                    {msg.context}
+                  </pre>
+                )}
+              </div>
+            )}
           </div>
         ))}
         {loading && <div>Assistant is typing...</div>}
@@ -124,7 +168,7 @@ const Chat: React.FC = () => {
             cursor: "pointer",
           }}
         >
-          Send
+          {loading ? "Sending..." : "Send"}
         </button>
       </form>
     </div>
