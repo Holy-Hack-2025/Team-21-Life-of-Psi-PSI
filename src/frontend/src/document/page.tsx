@@ -1,109 +1,84 @@
+// Document.tsx
 'use client'
 
+import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Button } from '@/components/ui/button'
-import {useForm} from "react-hook-form"
-import {
-  Form,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-} from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { Upload } from 'lucide-react'
 import axios from 'axios'
+
+// Define our form schema.
+// Here we expect a filename and a file input. (The file input value will be a FileList)
 const formSchema = z.object({
-  filename: z.string().min(5).max(50),
-  file: z.any(),
+  filename: z.string().min(5, "Filename must be at least 5 characters").max(50),
+  file: z.any(), // For a file, you can further validate if needed.
 })
 
+type FormDataType = z.infer<typeof formSchema>
+
 const Document = () => {
-  const form = useForm<z.infer<typeof formSchema>>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<FormDataType>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       filename: '',
     },
   })
 
-  const fileRef = form.register('file')
+  const onSubmit = async (values: FormDataType) => {
+    // Create FormData to send file as multipart/form-data.
+    const formData = new FormData()
+    formData.append('file_name', values.filename)
+    // Using register('file') directly on the input, its value will be a FileList.
+    if (values.file && values.file[0]) {
+      formData.append('file', values.file[0])
+    } else {
+      console.error("No file selected")
+      return
+    }
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    // TO FIX: code 422
-    axios.post(
-      'http://localhost:8000/add_data',
-      {
-        filename: values.filename,
-        file: values.file,
-      },
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      }
-    )
+    try {
+      const response = await axios.post('http://localhost:8000/add_data', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      console.log("Upload response:", response.data)
+    } catch (error) {
+      console.error("Upload error:", error)
+    }
   }
 
   return (
-    <>
-      <h1 className='ml-10 mt-10 mb-5 text-3xl font-semibold'>
-        Document Upload
-      </h1>
-      <p className='ml-10'>Upload your documents to get a real time analysis</p>
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className='w-full p-10'>
-          <FormField
-            control={form.control}
-            name='filename'
-            render={({ field }) => {
-              return (
-                <FormItem>
-                  <FormLabel className='text-gray-500 font-normal mb-2'>
-                    FILENAME
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      className='w-4xl h-[60px]'
-                      placeholder='Enter filename'
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )
-            }}
+    <div style={{ padding: '2rem' }}>
+      <h1 style={{ marginBottom: '1rem', fontSize: '2rem' }}>Document Upload</h1>
+      <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div>
+          <label htmlFor="filename">Filename</label>
+          <input
+            id="filename"
+            type="text"
+            placeholder="Enter filename"
+            {...register('filename')}
+            style={{ width: '100%', height: '2.5rem', padding: '0.5rem' }}
           />
-        <FormField
-          control={form.control}
-          name="file"
-          render={({ field: _field }) => {
-            return (
-              <FormItem>
-                <FormLabel className="text-gray-500 font-normal mt-5 mb-2">
-                  FILE
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    className="w-4xl h-[60px]"
-                    type="file"
-                    {...fileRef}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )
-          }}
-        />
-
-          <Button className='mt-5 w-4xl h-[60px]' type='submit'>
-            <Upload />
-            <span className='ml-3'>Upload file</span>
-          </Button>
-        </form>
-      </Form>
-    </>
+          {errors.filename && <p style={{ color: 'red' }}>{errors.filename.message}</p>}
+        </div>
+        <div>
+          <label htmlFor="file">File</label>
+          <input
+            id="file"
+            type="file"
+            {...register('file')}
+            style={{ width: '100%', height: '2.5rem' }}
+          />
+          {errors.file && <p style={{ color: 'red' }}>Please select a file.</p>}
+        </div>
+        <button type="submit" style={{ padding: '0.75rem', fontSize: '1rem' }}>
+          Upload file
+        </button>
+      </form>
+    </div>
   )
 }
 

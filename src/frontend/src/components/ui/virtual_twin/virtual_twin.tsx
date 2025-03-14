@@ -1,23 +1,29 @@
-import React, { useEffect, useState } from 'react';
-import './dashboard_styles.css';
+import './virtual_twin.css';
+
+// Dashboard.tsx
+import React, { useEffect, useState, JSX } from 'react';
 // Import the diagram image from assets
-import diagramImage from '../../assets/flow.png';
+import diagramImage from '@assets/flow.png'
 
-function Dashboard() {
+
+
+// Define a generic type for the dashboard data.
+// You can refine this type as needed.
+type DashboardData = Record<string, any>;
+
+const VirtualTwin: React.FC = () => {
   // State for one-time snapshot data
-  const [snapshotData, setSnapshotData] = useState(null);
-
+  const [snapshotData, setSnapshotData] = useState<DashboardData | null>(null);
   // State for real-time data (received via WebSocket)
-  const [realtimeData, setRealtimeData] = useState(null);
-
+  const [realtimeData, setRealtimeData] = useState<DashboardData | null>(null);
   // State for any alert message
-  const [alertMessage, setAlertMessage] = useState(null);
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
 
   // 1. Fetch snapshot data once on mount
   useEffect(() => {
     fetch('http://localhost:8000/process_data')
       .then((response) => response.json())
-      .then((data) => {
+      .then((data: DashboardData) => {
         console.log('Snapshot data:', data);
         setSnapshotData(data);
       })
@@ -31,7 +37,10 @@ function Dashboard() {
     const ws = new WebSocket('ws://localhost:8000/ws');
     ws.onmessage = (event) => {
       try {
-        const messageData = JSON.parse(event.data);
+        const messageData = JSON.parse(event.data) as {
+          data?: DashboardData;
+          alert?: string;
+        };
         console.log('Real-time data:', messageData);
 
         if (messageData.data) {
@@ -61,7 +70,7 @@ function Dashboard() {
   }, []);
 
   // Helper function to render a data object (component metrics)
-  const renderMetrics = (dataObj) => {
+  const renderMetrics = (dataObj: Record<string, any>): JSX.Element => {
     return (
       <ul>
         {Object.entries(dataObj).map(([key, value]) => (
@@ -74,7 +83,7 @@ function Dashboard() {
   };
 
   // Renders a section for each component
-  const renderComponents = (dataObj) => {
+  const renderComponents = (dataObj: Record<string, any>): JSX.Element[] => {
     return Object.entries(dataObj).map(([componentName, metrics]) => (
       <div key={componentName} style={{ margin: '1rem 0' }}>
         <h3>{componentName}</h3>
@@ -84,76 +93,68 @@ function Dashboard() {
   };
 
   // Example logic to decide color for each component’s “light”
-  // Adjust the thresholds as needed
-  const getBlastFurnaceColor = () => {
+  // Adjust the thresholds as needed.
+  const getBlastFurnaceColor = (): string => {
     if (!realtimeData || !realtimeData.blast_furnace) return 'gray';
     const temp = realtimeData.blast_furnace.bf_temperature;
     return temp > 1550 ? 'red' : 'green';
   };
 
-  const getCokeOvensColor = () => {
+  const getCokeOvensColor = (): string => {
     if (!realtimeData || !realtimeData.coke_ovens) return 'gray';
     const temp = realtimeData.coke_ovens.temperature;
     return temp > 1100 ? 'red' : 'green';
   };
 
-//   // Fixed: use "coke_wash" instead of invalid property name
-//   const getCokeWashColor = () => {
-//     if (!realtimeData || !realtimeData.coke_wash) return 'gray';
-//     const temp = realtimeData.coke_wash.coke_wash_temperature;
-//     return temp > 1500 ? 'red' : 'green';
-//   };
-
-  // Fixed: check for "stoves" instead of a wrong property
-  const getStovesColor = () => {
+  const getStovesColor = (): string => {
     if (!realtimeData || !realtimeData.stoves) return 'gray';
     const temp = realtimeData.stoves.stove_temp;
     return temp > 1200 ? 'red' : 'green';
   };
 
-  const getBOSColor = () => {
+  const getBOSColor = (): string => {
     if (!realtimeData || !realtimeData.bos) return 'gray';
     const temp = realtimeData.bos.bos_temperature;
     return temp > 1500 ? 'red' : 'green';
   };
 
-  const getStoverColor = () => {
+  const getStoverColor = (): string => {
     if (!realtimeData || !realtimeData.stover) return 'gray';
     const temp = realtimeData.stover.stover_temperature;
     return temp > 1500 ? 'red' : 'green';
   };
 
-  const getPowerPlantColor = () => {
+  const getPowerPlantColor = (): string => {
     if (!realtimeData || !realtimeData.power_plant) return 'gray';
     const temp = realtimeData.power_plant.power_plant_temperature;
     return temp > 1500 ? 'red' : 'green';
   };
 
-  const getSinterPlantColor = () => {
+  const getSinterPlantColor = (): string => {
     if (!realtimeData || !realtimeData.sinter_plant) return 'gray';
     const temp = realtimeData.sinter_plant.sinter_plant_temperature;
     return temp > 1500 ? 'red' : 'green';
   };
 
-  const getLimePlantColor = () => {
+  const getLimePlantColor = (): string => {
     if (!realtimeData || !realtimeData.lime_plant) return 'gray';
     const temp = realtimeData.lime_plant.lime_plant_temperature;
     return temp > 1500 ? 'red' : 'green';
   };
 
-  const getOxygenPlantColor = () => {
+  const getOxygenPlantColor = (): string => {
     if (!realtimeData || !realtimeData.oxygen_plant) return 'gray';
     const temp = realtimeData.oxygen_plant.oxygen_plant_temperature;
     return temp > 1500 ? 'red' : 'green';
   };
 
-  const getBlowersColor = () => {
+  const getBlowersColor = (): string => {
     if (!realtimeData || !realtimeData.blowers) return 'gray';
     const temp = realtimeData.blowers.blowers_temperature;
     return temp > 1500 ? 'red' : 'green';
   };
 
-  const handleAlertAction = () => {
+  const handleAlertAction = (): void => {
     // For example, redirect to a chat or an incident management page
     window.location.href = '/chat';
   };
@@ -180,13 +181,6 @@ function Dashboard() {
           title="Coke Ovens"
         />
 
-        {/* Coke Wash Indicator
-        <div
-          className="status-indicator coke-wash-indicator"
-          style={{ backgroundColor: getCokeWashColor() }}
-          title="Coke Wash"
-        /> */}
-
         {/* Stoves Indicator */}
         <div
           className="status-indicator stoves-indicator"
@@ -195,7 +189,7 @@ function Dashboard() {
         />
       </div>
 
-      {/* Additional indicators outside the diagram-container (if needed) */}
+      {/* Additional indicators outside the diagram-container */}
       <div
         className="status-indicator bos-indicator"
         style={{ backgroundColor: getBOSColor() }}
@@ -265,6 +259,6 @@ function Dashboard() {
       )}
     </div>
   );
-}
+};
 
-export default Dashboard;
+export default VirtualTwin;

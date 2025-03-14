@@ -45,6 +45,11 @@ const items = [
     url: '/profile',
     icon: User,
   },
+  {
+    title: 'Virtual Twin',
+    url: '/virtual_twin',
+    icon: ChartLine,
+  }
 ]
 
 const previousDocuments = [

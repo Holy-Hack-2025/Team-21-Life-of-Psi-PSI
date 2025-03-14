@@ -9,7 +9,7 @@ OPENAI_API = os.getenv("OPENAI_API_KEY")
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
-QDRANT_CLIENT_HOST = os.getenv("QDRANT_CLIENT_HOST")
+QDRANT_CLIENT_HOST = os.getenv("QDRANT_CLIENT_HOST", "http://localhost:6333")
 
 
 GEMINI_PROMPT : str = """

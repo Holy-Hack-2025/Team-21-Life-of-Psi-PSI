@@ -19,3 +19,4 @@ uvicorn
 fastapi
 matplotlib
 websockets
+python-multipart

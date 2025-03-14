@@ -8,9 +8,20 @@ from handle_file import extract_text_from_file, add_to_qdrant, query, delete_doc
 import asyncio
 import random
 from typing import Optional
-import uuid
 import time
 
+
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, UploadFile, File, Form
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from models import conversation_db
+from tools import logger, call_openai_api
+from handle_file import extract_text_from_file, add_to_qdrant, query, delete_document_from_collection
+import asyncio
+import random
+from typing import Optional
+import uuid
+import time
 app = FastAPI()
 
 class Conversation(BaseModel):
@@ -25,6 +36,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_methods=["*"],  
+    allow_credentials=True,
     allow_headers=["*"],  
 )
 
@@ -72,11 +84,25 @@ async def get_openai_answer(item: Conversation):
         "conversation_id": conversation_id
     }
 
+
+# Adjust the endpoint to accept a file upload.
 @app.post("/add_data")
-async def add_data(item: FileItem):
-    file_data = item.file_data
-    file_name = item.file_name
-    file_text = extract_text_from_file(file_data)
+async def add_data(
+    file: UploadFile = File(...),
+    file_name: str = Form(...)
+):
+    try:
+        file_data = await file.read()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="Error reading file")
+    
+    # Optionally, if your file might not be UTF-8 encoded, you can modify extract_text_from_file
+    # to decode with errors='ignore' or use another encoding.
+    try:
+        file_text = extract_text_from_file(file_data)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="Error extracting text from file")
+    
     result = add_to_qdrant(text=file_text, source=file_name, collection_name="text_collection")
     return {"message": "Data added successfully"}
 
