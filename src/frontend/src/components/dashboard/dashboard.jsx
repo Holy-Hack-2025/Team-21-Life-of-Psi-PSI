@@ -1,4 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import './dashboard_styles.css';
+// Import the diagram image from assets
+import diagramImage from '../../assets/flow.png';
 
 function Dashboard() {
   // State for one-time snapshot data
@@ -25,22 +28,15 @@ function Dashboard() {
 
   // 2. WebSocket for continuous updates
   useEffect(() => {
-    // Open WebSocket connection
     const ws = new WebSocket('ws://localhost:8000/ws');
-
-    // When a message is received from the server
     ws.onmessage = (event) => {
       try {
         const messageData = JSON.parse(event.data);
-        // messageData should have { timestamp, data, alert }
         console.log('Real-time data:', messageData);
 
-        // Update real-time data
         if (messageData.data) {
           setRealtimeData(messageData.data);
         }
-
-        // If there is an alert, update alertMessage
         if (messageData.alert) {
           setAlertMessage(messageData.alert);
         } else {
@@ -59,7 +55,6 @@ function Dashboard() {
       console.log('WebSocket connection closed');
     };
 
-    // Cleanup when the component unmounts
     return () => {
       ws.close();
     };
@@ -88,9 +83,160 @@ function Dashboard() {
     ));
   };
 
+  // Example logic to decide color for each component’s “light”
+  // Adjust the thresholds as needed
+  const getBlastFurnaceColor = () => {
+    if (!realtimeData || !realtimeData.blast_furnace) return 'gray';
+    const temp = realtimeData.blast_furnace.bf_temperature;
+    return temp > 1550 ? 'red' : 'green';
+  };
+
+  const getCokeOvensColor = () => {
+    if (!realtimeData || !realtimeData.coke_ovens) return 'gray';
+    const temp = realtimeData.coke_ovens.temperature;
+    return temp > 1100 ? 'red' : 'green';
+  };
+
+//   // Fixed: use "coke_wash" instead of invalid property name
+//   const getCokeWashColor = () => {
+//     if (!realtimeData || !realtimeData.coke_wash) return 'gray';
+//     const temp = realtimeData.coke_wash.coke_wash_temperature;
+//     return temp > 1500 ? 'red' : 'green';
+//   };
+
+  // Fixed: check for "stoves" instead of a wrong property
+  const getStovesColor = () => {
+    if (!realtimeData || !realtimeData.stoves) return 'gray';
+    const temp = realtimeData.stoves.stove_temp;
+    return temp > 1200 ? 'red' : 'green';
+  };
+
+  const getBOSColor = () => {
+    if (!realtimeData || !realtimeData.bos) return 'gray';
+    const temp = realtimeData.bos.bos_temperature;
+    return temp > 1500 ? 'red' : 'green';
+  };
+
+  const getStoverColor = () => {
+    if (!realtimeData || !realtimeData.stover) return 'gray';
+    const temp = realtimeData.stover.stover_temperature;
+    return temp > 1500 ? 'red' : 'green';
+  };
+
+  const getPowerPlantColor = () => {
+    if (!realtimeData || !realtimeData.power_plant) return 'gray';
+    const temp = realtimeData.power_plant.power_plant_temperature;
+    return temp > 1500 ? 'red' : 'green';
+  };
+
+  const getSinterPlantColor = () => {
+    if (!realtimeData || !realtimeData.sinter_plant) return 'gray';
+    const temp = realtimeData.sinter_plant.sinter_plant_temperature;
+    return temp > 1500 ? 'red' : 'green';
+  };
+
+  const getLimePlantColor = () => {
+    if (!realtimeData || !realtimeData.lime_plant) return 'gray';
+    const temp = realtimeData.lime_plant.lime_plant_temperature;
+    return temp > 1500 ? 'red' : 'green';
+  };
+
+  const getOxygenPlantColor = () => {
+    if (!realtimeData || !realtimeData.oxygen_plant) return 'gray';
+    const temp = realtimeData.oxygen_plant.oxygen_plant_temperature;
+    return temp > 1500 ? 'red' : 'green';
+  };
+
+  const getBlowersColor = () => {
+    if (!realtimeData || !realtimeData.blowers) return 'gray';
+    const temp = realtimeData.blowers.blowers_temperature;
+    return temp > 1500 ? 'red' : 'green';
+  };
+
+  const handleAlertAction = () => {
+    // For example, redirect to a chat or an incident management page
+    window.location.href = '/chat';
+  };
+
   return (
-    <div style={{ padding: '1rem' }}>
+    <div className="dashboard-container">
       <h1>Steel Plant Dashboard</h1>
+
+      {/* Diagram with Overlays */}
+      <div className="diagram-container">
+        <img src={diagramImage} alt="Steel plant diagram" className="diagram-image" />
+
+        {/* Blast Furnace Indicator */}
+        <div
+          className="status-indicator blast-furnace-indicator"
+          style={{ backgroundColor: getBlastFurnaceColor() }}
+          title="Blast Furnace"
+        />
+
+        {/* Coke Ovens Indicator */}
+        <div
+          className="status-indicator coke-ovens-indicator"
+          style={{ backgroundColor: getCokeOvensColor() }}
+          title="Coke Ovens"
+        />
+
+        {/* Coke Wash Indicator
+        <div
+          className="status-indicator coke-wash-indicator"
+          style={{ backgroundColor: getCokeWashColor() }}
+          title="Coke Wash"
+        /> */}
+
+        {/* Stoves Indicator */}
+        <div
+          className="status-indicator stoves-indicator"
+          style={{ backgroundColor: getStovesColor() }}
+          title="Stoves"
+        />
+      </div>
+
+      {/* Additional indicators outside the diagram-container (if needed) */}
+      <div
+        className="status-indicator bos-indicator"
+        style={{ backgroundColor: getBOSColor() }}
+        title="BOS"
+      />
+
+      <div
+        className="status-indicator stover-indicator"
+        style={{ backgroundColor: getStoverColor() }}
+        title="Stover"
+      />
+
+      <div
+        className="status-indicator power_plant-indicator"
+        style={{ backgroundColor: getPowerPlantColor() }}
+        title="Power Plant"
+      />
+
+      <div
+        className="status-indicator sinter_plant-indicator"
+        style={{ backgroundColor: getSinterPlantColor() }}
+        title="Sinter Plant"
+      />
+
+      <div
+        className="status-indicator lime_plant-indicator"
+        style={{ backgroundColor: getLimePlantColor() }}
+        title="Lime Plant"
+      />
+
+      <div
+        className="status-indicator oxygen_plant-indicator"
+        style={{ backgroundColor: getOxygenPlantColor() }}
+        title="Oxygen Plant"
+      />
+
+      <div
+        className="status-indicator blowers-indicator"
+        style={{ backgroundColor: getBlowersColor() }}
+        title="Blowers"
+      />
 
       {/* Snapshot Data */}
       {snapshotData && (
@@ -110,8 +256,11 @@ function Dashboard() {
 
       {/* Alert Message */}
       {alertMessage && (
-        <div style={{ color: 'red', marginTop: '1rem' }}>
+        <div className="notification is-danger">
           <strong>ALERT:</strong> {alertMessage}
+          <button className="take_action" onClick={handleAlertAction}>
+            Take Action
+          </button>
         </div>
       )}
     </div>

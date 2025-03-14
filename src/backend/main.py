@@ -94,8 +94,8 @@ def generate_component_data():
             "sinter_output_tph": round(random.uniform(50, 150), 1), # tons/hour
             "bed_temp": round(random.uniform(1000, 1300), 1),     # °C
         },
-        "lime_kiln": {
-            "lime_output_tph": round(random.uniform(10, 30), 1),  # tons/hour
+        "lime_plant": {  # renamed from "lime_kiln"
+            "lime_plant_temperature": round(random.uniform(900, 1100), 1),
             "kiln_temp": round(random.uniform(900, 1100), 1),     # °C
         },
         "bos": {
@@ -105,6 +105,15 @@ def generate_component_data():
         "power_plant": {
             "electricity_mw": round(random.uniform(50, 150), 1),   # MW
             "fuel_gas_cons": round(random.uniform(1000, 3000), 1), # Nm³/hr
+        },
+        "oxygen_plant": {
+            "oxygen_plant_temperature": round(random.uniform(100, 300), 1)
+        },
+        "blowers": {
+            "blowers_temperature": round(random.uniform(100, 300), 1)
+        },
+        "stover": {
+            "stover_temperature": round(random.uniform(100, 300), 1)
         }
     }
 
