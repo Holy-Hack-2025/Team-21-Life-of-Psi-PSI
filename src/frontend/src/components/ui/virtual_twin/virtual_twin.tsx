@@ -13,7 +13,7 @@ type DashboardData = Record<string, any>;
 
 const VirtualTwin: React.FC = () => {
   // State for one-time snapshot data
-  const [snapshotData, setSnapshotData] = useState<DashboardData | null>(null);
+  const [_, setSnapshotData] = useState<DashboardData | null>(null);
   // State for real-time data (received via WebSocket)
   const [realtimeData, setRealtimeData] = useState<DashboardData | null>(null);
   // State for any alert message
@@ -232,13 +232,13 @@ const VirtualTwin: React.FC = () => {
         title="Blowers"
       />
 
-      {/* Snapshot Data */}
+      {/* Snapshot Data
       {snapshotData && (
         <div>
           <h2>Snapshot Data</h2>
           {renderComponents(snapshotData)}
         </div>
-      )}
+      )} */}
 
       {/* Real-time Data */}
       {realtimeData && (

@@ -11,7 +11,6 @@ import VirtualTwin from './components/ui/virtual_twin/virtual_twin.tsx'
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    ReactDOM.createRoot(root).render(
   <BrowserRouter>
     <Routes>
       <Route path="/" element={<></>}></Route>
@@ -21,8 +20,6 @@ createRoot(document.getElementById("root")!).render(
         <Route path='/virtual_twin' element={<VirtualTwin />} />
     </Routes>
   </BrowserRouter>
-);
-
     <Layout>
       <App />
     </Layout>

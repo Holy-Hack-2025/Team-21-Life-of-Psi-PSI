@@ -21,8 +21,8 @@ import {
   ChevronUp,
   File,
   FileInput,
+  Heater,
   MessageSquare,
-  User,
   User2,
 } from "lucide-react";
 import {
@@ -49,14 +49,9 @@ const items = [
     icon: ChartLine,
   },
   {
-    title: "Profile",
-    url: "/profile",
-    icon: User,
-  },
-  {
     title: 'Virtual Twin',
     url: '/virtual_twin',
-    icon: ChartLine,
+    icon: Heater,
   }
 ]
 
