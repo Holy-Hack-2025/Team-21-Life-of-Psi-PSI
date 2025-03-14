@@ -2,7 +2,7 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from '@/components/ui/collapsible'
+} from "@/components/ui/collapsible";
 import {
   Sidebar,
   SidebarContent,
@@ -14,50 +14,58 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from '@/components/ui/sidebar'
+} from "@/components/ui/sidebar";
 import {
   ChartLine,
   ChevronDown,
+  ChevronUp,
   File,
   FileInput,
   MessageSquare,
   User,
-} from 'lucide-react'
+  User2,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
 
 const items = [
   {
-    title: 'Document',
-    url: '/document',
+    title: "Document",
+    url: "/document",
     icon: FileInput,
   },
   {
-    title: 'Chat',
-    url: '/chat',
+    title: "Chat",
+    url: "/chat",
     icon: MessageSquare,
   },
   {
-    title: 'Dashboard',
-    url: '/dashboard',
+    title: "Dashboard",
+    url: "/dashboard",
     icon: ChartLine,
   },
   {
-    title: 'Profile',
-    url: '/profile',
+    title: "Profile",
+    url: "/profile",
     icon: User,
   },
-]
+];
 
 const previousDocuments = [
   {
-    title: 'steel_dump_mon.txt',
+    title: "steel_dump_mon.txt",
   },
   {
-    title: 'steel_dump_tue.txt',
+    title: "steel_dump_tue.txt",
   },
   {
-    title: 'galvinised_italy.xml',
+    title: "galvinised_italy.xml",
   },
-]
+];
 
 export function AppSidebar() {
   return (
@@ -65,7 +73,7 @@ export function AppSidebar() {
       <SidebarHeader>
         <SidebarGroup>
           <SidebarGroupContent>
-            <h1 className='text-2xl font-bold'>Untitled Project</h1>
+            <h1 className="text-2xl font-bold">Komorebi</h1>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarHeader>
@@ -86,12 +94,12 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-        <Collapsible defaultOpen className='group/collapsible'>
+        <Collapsible defaultOpen className="group/collapsible">
           <SidebarGroup>
             <SidebarGroupLabel asChild>
               <CollapsibleTrigger>
-                PREVIOUS DOCUMENTS{' '}
-                <ChevronDown className='ml-auto transition-transform group-data-[state=open]/collapsible:rotate-180' />
+                PREVIOUS DOCUMENTS{" "}
+                <ChevronDown className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-180" />
               </CollapsibleTrigger>
             </SidebarGroupLabel>
             <CollapsibleContent>
@@ -100,7 +108,7 @@ export function AppSidebar() {
                   {previousDocuments.map((item) => (
                     <SidebarMenuItem key={item.title}>
                       <SidebarMenuButton asChild>
-                        <a href='#'>
+                        <a href="#">
                           <File />
                           <span>{item.title}</span>
                         </a>
@@ -113,7 +121,34 @@ export function AppSidebar() {
           </SidebarGroup>
         </Collapsible>
       </SidebarContent>
-      <SidebarFooter />
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <SidebarMenuButton>
+                  <User2 /> Aditya Chaturvedi
+                  <ChevronUp className="ml-auto" />
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                side="top"
+                className="w-[--radix-popper-anchor-width]"
+              >
+                <DropdownMenuItem>
+                  <span>Account</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <span>Billing</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <span>Sign out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
     </Sidebar>
-  )
+  );
 }
