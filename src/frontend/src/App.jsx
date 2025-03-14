@@ -1,10 +1,26 @@
-import { useState } from 'react'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import Sidebar from './components/Sidebar'
+
+import Profile from './pages/Profile'
+import Home from './pages/Home'
+import Document from './pages/Document'
+import Dashboard from './pages/Dashboard'
+import Chat from './pages/chat'
 
 const App = () => {
   return (
-    <div>
-      <h1 className='text-4xl font-bold'>Hello</h1>
-    </div>
+    <>
+      <BrowserRouter>
+        <Routes>
+          <Route path='/' element={<Home />} />
+          <Route path='/chat' element={<Chat />} />
+          <Route path='/dashboard' element={<Dashboard />} />
+          <Route path='/document' element={<Document />} />
+          <Route path='/profile' element={<Profile />} />
+        </Routes>
+      </BrowserRouter>
+      <Sidebar />
+    </>
   )
 }
 
