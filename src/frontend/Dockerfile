@@ -9,19 +9,43 @@ RUN npm install
 
 # Copy frontend files and build
 COPY . .
-RUN npm run build
+RUN \
+  if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
+  elif [ -f package-lock.json ]; then npm ci; \
+  elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm i --frozen-lockfile; \
+  else echo "Lockfile not found." && exit 1; \
+  fi
 
-# Production Stage: Serve with Nginx
-FROM nginx:latest
+# Rebuild the source code only when needed
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
 
-# Remove default Nginx index.html
-RUN rm -rf /usr/share/nginx/html/*
+RUN \
+  if [ -f yarn.lock ]; then yarn run build; \
+  elif [ -f package-lock.json ]; then npm run build; \
+  elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm run build; \
+  else echo "Lockfile not found." && exit 1; \
+  fi
 
-# Copy the built frontend files from the build stage
-COPY --from=build /app/dist /usr/share/nginx/html
+WORKDIR /app
 
-# Replace default Nginx config with our custom one
-COPY nginx/default.conf /etc/nginx/conf.d/default.conf
+ENV NODE_ENV=production
+COPY --from=builder /app/public ./public
 
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+# Automatically leverage output traces to reduce image size
+# https://nextjs.org/docs/advanced-features/output-file-tracing
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+
+EXPOSE 3000
+
+ENV PORT=3000
+
+# server.js is created by next build from the standalone output
+# https://nextjs.org/docs/pages/api-reference/config/next-config-js/output
+ENV HOSTNAME="0.0.0.0"
+CMD ["node", "server.js"]

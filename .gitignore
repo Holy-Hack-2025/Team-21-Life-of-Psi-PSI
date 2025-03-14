@@ -139,3 +139,6 @@ web_modules/
 
 # Stores VSCode versions used for testing VSCode extensions
 .vscode-test
+
+next-env.d.ts
+.next/

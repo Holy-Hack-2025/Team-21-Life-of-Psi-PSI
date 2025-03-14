@@ -4,7 +4,6 @@ python-dotenv
 aiogram
 openai
 celery
-fastapi
 redis
 magika
 pillow
@@ -15,7 +14,3 @@ python-docx
 google-generativeai
 psycopg2-binary
 pandas
-uvicorn 
-fastapi
-matplotlib
-websockets
