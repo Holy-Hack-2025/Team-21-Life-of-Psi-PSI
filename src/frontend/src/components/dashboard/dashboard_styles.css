@@ -1,0 +1,128 @@
+.dashboard-container {
+    position: relative;
+    padding: 1rem;
+  }
+  
+  .diagram-container {
+    position: relative;
+    display: inline-block;
+  }
+  
+  .diagram-image {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  
+  /* Generic status indicator style */
+  .status-indicator {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    position: absolute;
+    border: 2px solid #333;
+  }
+  
+  /* Position each indicator (adjust top/left as needed) */
+  
+  /* Blast Furnace */
+  .blast-furnace-indicator {
+    top: 180px;
+    left: 280px;
+  }
+  
+  /* Coke Ovens */
+  .coke-ovens-indicator {
+    top: 144px;
+    left: 173px;
+  }
+  
+  /* Coke Wash */
+  .coke-wash-indicator {
+    top: 144px;
+    left: 173px;
+  }
+  
+  /* Stoves */
+  .stoves-indicator {
+    top: 300px;
+    left: 497px;
+  }
+  
+  /* BOS */
+  .bos-indicator {
+    top: 444px;
+    left: 557px;
+  }
+  
+  /* Stover */
+  .stover-indicator {
+    top: 237px;
+    left: 497px;
+  }
+  
+  /* Power Plant */
+  .power_plant-indicator {
+    top: 76px;
+    left: 675px;
+  }
+  
+  /* Sinter Plant */
+  .sinter_plant-indicator {
+    top: 342px;
+    left: 200px;
+  }
+  
+  /* Lime Plant */
+  .lime_plant-indicator {
+    top: 446px;
+    left: 359px;
+  }
+  
+  /* Oxygen Plant */
+  .oxygen_plant-indicator {
+    top: 450px;
+    left: 715px;
+  }
+  
+  /* Blowers */
+  .blowers-indicator {
+    top: 94px;
+    left: 495px;
+  }
+  
+  /* Notification styling */
+  .notification {
+    margin-top: 20px;
+    margin-bottom: 0;
+    padding: 10px;
+    border-radius: 0;
+    font-size: 14px;
+    font-weight: 500;
+    color: #fff;
+    background-color: #f44336;
+    border: 1px solid #f44336;
+    z-index: 9999;
+    position: fixed;
+    top: 0;
+    left: 0;
+  }
+  
+  .take_action {
+    margin-top: 20px;
+    margin-bottom: 0;
+    padding: 10px;
+    border-radius: 0;
+    font-size: 14px;
+    font-weight: 500;
+    color: #fff;
+    background-color: #4CAF50;
+    border: 1px solid #4CAF50;
+    z-index: 9999;
+    position: fixed;
+    top: 0;
+    right: 0;
+  }
+  
