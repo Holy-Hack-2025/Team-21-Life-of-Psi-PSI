@@ -1,112 +1,164 @@
-from fastapi import FastAPI, HTTPException, Header, Depends
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from models import portfolio_db
+from models import conversation_db
 from pydantic import BaseModel
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-import os
-import hashlib
-import time 
+from tools import logger, call_openai_api
+from handle_file import extract_text_from_file, add_to_qdrant, query, delete_document_from_collection
+import asyncio
+import random
+from typing import Optional
+import uuid
+import time
 
 app = FastAPI()
 
-class EmailData(BaseModel):
-    from_email: str
-    subject: str
-    body: str
+class Conversation(BaseModel):
+    conversation_id: Optional[str] = None
+    message: str
 
-class PortfolioItem(BaseModel):
-    title: str
-    description: str
-    image: str
-    link: str   
-
-class LoginData(BaseModel):
-    password: str
+class FileItem(BaseModel):
+    file_name: str
+    file_data: bytes
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", 'http://localhost/', "http://64.226.78.105/", "http://134.58.253.20/", "http://104.248.246.183/", "https://104.248.246.183/"],    allow_credentials=True,
+    allow_origins=["*"],
     allow_methods=["*"],  
     allow_headers=["*"],  
 )
 
-# Pretend we have a hashed admin password in .env
-ADMIN_HASH = os.getenv("ADMIN_HASH")
-SECRET_KEY = os.getenv("SECRET_KEY")  # load from .env in real usage
-ALGORITHM = "HS256"
+    
+@app.post("/get_openai_answer")
+async def get_openai_answer(item: Conversation):
+    conversation_id = item.conversation_id
+    message = item.message
 
-def create_access_token(data: dict, expires_in: int = 900) -> str:
+    if conversation_id:
+        db_conversation = conversation_db.get_conversation(conversation_id)
+        db_conversation.update({"role": "user", "content": item.message})
+        conversation = db_conversation
+    else:
+        conversation_id = uuid.uuid4().hex
+        conversation = [
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": message}
+        ]
+        context = await query(message, 'text_collection')
+        conversation.append({"role": "system", "content": f'Use the following context: {context}'})
+
+        openai_response = await call_openai_api(conversation)
+        conversation.append({"role": "assistant", "content": openai_response})
+        conversation_db.insert(conversation)
+
+    return {"message": "Response generated successfully", "answer": openai_response, 'conversation_id': conversation_id}
+
+@app.post("/add_data")
+async def add_data(item: FileItem):
+    file_data = item.file_data
+    file_name = item.file_name
+    file_text = extract_text_from_file(file_data)
+    result = add_to_qdrant(text=file_text, source=file_name, collection_name="text_collection")
+    return {"message": "Data added successfully"}
+
+@app.post("/delete_data")
+async def delete_data(item: FileItem):
+    file_name = item.file_name
+    result = delete_document_from_collection("text_collection", file_name)
+    return {"message": "Data deleted successfully"}
+
+active_connections = []
+
+# 1. Function to generate random data for each component
+def generate_component_data():
     """
-    Creates a JWT with payload `data` that expires in `expires_in` seconds (default 15 min).
+    Returns a dictionary of simulated metrics for each major component
+    in an integrated steelmaking process.
     """
-    payload = data.copy()
-    # Set expiration time
-    expire = int(time.time()) + expires_in
-    payload.update({"exp": expire})
+    return {
+        "coke_ovens": {
+            "temperature": round(random.uniform(900, 1200), 1),   # °C
+            "coke_output_tph": round(random.uniform(20, 50), 1),  # tons/hour
+            "cog_flow": round(random.uniform(5000, 8000), 1),     # Nm³/hr
+        },
+        "blast_furnace": {
+            "hot_metal_tph": round(random.uniform(100, 300), 1),  # tons/hour
+            "top_gas_pressure": round(random.uniform(2, 5), 2),   # bar
+            "bf_temperature": round(random.uniform(1400, 1600), 1), # °C
+        },
+        "stoves": {
+            "stove_temp": round(random.uniform(800, 1200), 1),    # °C
+            "fuel_gas_flow": round(random.uniform(2000, 5000), 1),# Nm³/hr
+        },
+        "sinter_plant": {
+            "sinter_output_tph": round(random.uniform(50, 150), 1), # tons/hour
+            "bed_temp": round(random.uniform(1000, 1300), 1),     # °C
+        },
+        "lime_plant": {  # renamed from "lime_kiln"
+            "lime_plant_temperature": round(random.uniform(900, 1100), 1),
+            "kiln_temp": round(random.uniform(900, 1100), 1),     # °C
+        },
+        "bos": {
+            "steel_output_tph": round(random.uniform(120, 300), 1), # tons/hour
+            "oxygen_flow": round(random.uniform(5000, 10000), 1),   # Nm³/hr
+        },
+        "power_plant": {
+            "electricity_mw": round(random.uniform(50, 150), 1),   # MW
+            "fuel_gas_cons": round(random.uniform(1000, 3000), 1), # Nm³/hr
+        },
+        "oxygen_plant": {
+            "oxygen_plant_temperature": round(random.uniform(100, 300), 1)
+        },
+        "blowers": {
+            "blowers_temperature": round(random.uniform(100, 300), 1)
+        },
+        "stover": {
+            "stover_temperature": round(random.uniform(100, 300), 1)
+        }
+    }
 
-    token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
-    return token
+# 2. HTTP endpoint: returns one "snapshot" of the data
+@app.get("/process_data")
+def get_process_data():
+    """
+    Returns a JSON object with the latest data for each component.
+    """
+    return generate_component_data()
 
-@app.post("/admin/login")
-def admin_login(data: LoginData):
-    # Simple check: hash the incoming password and compare to stored hash
-    hashed_input = hashlib.sha256(data.password.encode()).hexdigest()
-    if hashed_input != ADMIN_HASH:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+# 3. Optional: WebSocket for continuous updates
+active_connections = []
 
-    # Credentials are valid -> create token
-    token_data = {"sub": 'admin'}  # "subject" = user
-    access_token = create_access_token(token_data, expires_in=900)  # 15 min
-    return {"access_token": access_token, "token_type": "bearer"}
-
-
-security = HTTPBearer()  # Bearer token scheme
-
-def verify_token(token: str):
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    active_connections.append(websocket)
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        # 'sub' is the subject (username)
-        return payload["sub"]
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+        while True:
+            # Generate data
+            data = generate_component_data()
 
+            # Example: "Bad" condition check (e.g., BF temperature too high)
+            # If we detect a "bad" condition, we can add an alert message.
+            alert = None
+            if data["blast_furnace"]["bf_temperature"] > 1550:
+                alert = "Blast Furnace temperature exceeding safe threshold!"
 
-@app.get("/portfolios")
-def get_portfolios():
-    return {"data": portfolio_db.get_all()}
+            # Send data to client
+            await websocket.send_json({
+                "timestamp": time.time(),
+                "data": data,
+                "alert": alert,
+            })
 
-@app.post("/portfolios")
-def create_portfolio(item: PortfolioItem, creds: HTTPAuthorizationCredentials = Depends(security)):
-    token = creds.credentials  # Bearer token string
-    user = verify_token(token)  # raises 401 on failure
-    portfolio_db.insert(item.title, item.description, item.image, item.link)
-    return {"message": "Portfolio item added successfully"}
+            # Wait before sending the next update
+            await asyncio.sleep(2)
+    except WebSocketDisconnect:
+        active_connections.remove(websocket)
+    except Exception as e:
+        # Handle unexpected exceptions
+        active_connections.remove(websocket)
+        print(f"WebSocket error: {e}")
 
-@app.put("/portfolios/{id}")
-def update_portfolio(id: str, item: PortfolioItem, creds: HTTPAuthorizationCredentials = Depends(security)):
-    token = creds.credentials  # Bearer token string
-    user = verify_token(token)  # raises 401 on failure
-    success = portfolio_db.update(id, item.title, item.description, item.image, item.link)
-    if success:
-        return {"message": "Portfolio item updated"}
-    raise HTTPException(status_code=404, detail="Portfolio item not found")
-
-@app.delete("/portfolios/{id}")
-def delete_portfolio(id: str, creds: HTTPAuthorizationCredentials = Depends(security)):
-    token = creds.credentials  # Bearer token string
-    user = verify_token(token)  # raises 401 on failure
-    success = portfolio_db.delete(id)
-    if success:
-        return {"message": "Portfolio item deleted"}
-    raise HTTPException(status_code=404, detail="Portfolio item not found")
-
-@app.post("/send-email")
-def send_email(email_data: EmailData):
-    send_email_func(email_data.from_email, email_data.subject, email_data.body)
-    return {"message": "Email sent successfully"}
-
-if __name__ == "__main__":
+if __name__ == "__main__":  
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
