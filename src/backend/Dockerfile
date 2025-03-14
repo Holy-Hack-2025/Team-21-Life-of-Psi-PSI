@@ -9,18 +9,18 @@ RUN apt-get update && apt-get install -y \
       libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /project
-
+# Set working directory to /app to match the volume mount in docker-compose.yml
+WORKDIR /app
 
 # Copy requirements and install them
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy your source code
+# Copy your source code (optional if you're using a volume mount)
 COPY . .
 
-# Expose the port if your bot listens on one (optional)
-EXPOSE 8080
+# Expose the port your FastAPI app listens on
+EXPOSE 8000
 
-# Command to run your bot, adjust as needed.
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run uvicorn; since main.py is now in /app, use "main:app"
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

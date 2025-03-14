@@ -24,8 +24,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      qdrant:
+        condition: service_healthy
     volumes:
-      - ./backend:/app
+      - ./backend:/project
 
   qdrant: 
     image: qdrant/qdrant

@@ -1,9 +1,10 @@
 import { useState } from 'react'
+import Dashboard from './components/dashboard/dashboard'
 
 const App = () => {
   return (
     <div>
-      <h1 className='text-4xl font-bold'>Hello</h1>
+      <Dashboard />
     </div>
   )
 }

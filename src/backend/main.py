@@ -1,15 +1,20 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from .models import portfolio_db
+from models import conversation_db
 from pydantic import BaseModel
 from tools import logger, call_openai_api
-from backend.handle_file import extract_text_from_file, add_to_qdrant, query
+from handle_file import extract_text_from_file, add_to_qdrant, query, delete_document_from_collection
 import asyncio
+import random
+from typing import Optional
+import uuid
+import time
 
 app = FastAPI()
 
 class Conversation(BaseModel):
-    conversation_id: str
+    conversation_id: Optional[str] = None
     message: str
 
 class FileItem(BaseModel):
@@ -23,56 +28,30 @@ app.add_middleware(
     allow_headers=["*"],  
 )
 
-# Dummy generator simulating a constantly streaming API.
-async def dummy_api_stream():
-    while True:
-        # For testing, change 'good' to 'bad' to trigger the alert.
-        data = {"value": "good"}  
-        yield data
-        await asyncio.sleep(1)  # simulate delay between data messages
-
-async def monitor_and_push():
-    async for data in dummy_api_stream():
-        # Define your "bad" condition here.
-        if data["value"] == "bad":
-            alert_message = f"Bad data detected: {data}"
-            # Send the alert to all connected clients.
-            for connection in active_connections:
-                await connection.send_text(alert_message)
-
-@app.on_event("startup")
-async def startup_event():
-    # Schedule the monitor task to run concurrently
-    asyncio.create_task(monitor_and_push())
-
-
+    
 @app.post("/get_openai_answer")
 async def get_openai_answer(item: Conversation):
     conversation_id = item.conversation_id
     message = item.message
 
     if conversation_id:
-        db_conversation = portfolio_db.get(conversation_id)
-        if db_conversation:
-            db_conversation.append({"role": "user", "content": item.message})
-            conversation = db_conversation
-        else:
-            conversation = [
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": message}
-            ]
-        context = query(message, 'text_collection')
+        db_conversation = conversation_db.get_conversation(conversation_id)
+        db_conversation.update({"role": "user", "content": item.message})
+        conversation = db_conversation
+    else:
+        conversation_id = uuid.uuid4().hex
+        conversation = [
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": message}
+        ]
+        context = await query(message, 'text_collection')
         conversation.append({"role": "system", "content": f'Use the following context: {context}'})
 
         openai_response = await call_openai_api(conversation)
         conversation.append({"role": "assistant", "content": openai_response})
-        return conversation
+        conversation_db.insert(conversation)
 
-    else:
-        logger.info("The conversation_id is not provided")
-
-    portfolio_db.insert(conversation)
-    return {"message": "Portfolio item added successfully"}
+    return {"message": "Response generated successfully", "answer": openai_response, 'conversation_id': conversation_id}
 
 @app.post("/add_data")
 async def add_data(item: FileItem):
@@ -82,7 +61,62 @@ async def add_data(item: FileItem):
     result = add_to_qdrant(text=file_text, source=file_name, collection_name="text_collection")
     return {"message": "Data added successfully"}
 
-# Store active WebSocket connections
+@app.post("/delete_data")
+async def delete_data(item: FileItem):
+    file_name = item.file_name
+    result = delete_document_from_collection("text_collection", file_name)
+    return {"message": "Data deleted successfully"}
+
+active_connections = []
+
+# 1. Function to generate random data for each component
+def generate_component_data():
+    """
+    Returns a dictionary of simulated metrics for each major component
+    in an integrated steelmaking process.
+    """
+    return {
+        "coke_ovens": {
+            "temperature": round(random.uniform(900, 1200), 1),   # °C
+            "coke_output_tph": round(random.uniform(20, 50), 1),  # tons/hour
+            "cog_flow": round(random.uniform(5000, 8000), 1),     # Nm³/hr
+        },
+        "blast_furnace": {
+            "hot_metal_tph": round(random.uniform(100, 300), 1),  # tons/hour
+            "top_gas_pressure": round(random.uniform(2, 5), 2),   # bar
+            "bf_temperature": round(random.uniform(1400, 1600), 1), # °C
+        },
+        "stoves": {
+            "stove_temp": round(random.uniform(800, 1200), 1),    # °C
+            "fuel_gas_flow": round(random.uniform(2000, 5000), 1),# Nm³/hr
+        },
+        "sinter_plant": {
+            "sinter_output_tph": round(random.uniform(50, 150), 1), # tons/hour
+            "bed_temp": round(random.uniform(1000, 1300), 1),     # °C
+        },
+        "lime_kiln": {
+            "lime_output_tph": round(random.uniform(10, 30), 1),  # tons/hour
+            "kiln_temp": round(random.uniform(900, 1100), 1),     # °C
+        },
+        "bos": {
+            "steel_output_tph": round(random.uniform(120, 300), 1), # tons/hour
+            "oxygen_flow": round(random.uniform(5000, 10000), 1),   # Nm³/hr
+        },
+        "power_plant": {
+            "electricity_mw": round(random.uniform(50, 150), 1),   # MW
+            "fuel_gas_cons": round(random.uniform(1000, 3000), 1), # Nm³/hr
+        }
+    }
+
+# 2. HTTP endpoint: returns one "snapshot" of the data
+@app.get("/process_data")
+def get_process_data():
+    """
+    Returns a JSON object with the latest data for each component.
+    """
+    return generate_component_data()
+
+# 3. Optional: WebSocket for continuous updates
 active_connections = []
 
 @app.websocket("/ws")
@@ -91,11 +125,31 @@ async def websocket_endpoint(websocket: WebSocket):
     active_connections.append(websocket)
     try:
         while True:
-            # You can wait for messages from the client if needed.
-            await websocket.receive_text()  # This keeps the connection alive.
+            # Generate data
+            data = generate_component_data()
+
+            # Example: "Bad" condition check (e.g., BF temperature too high)
+            # If we detect a "bad" condition, we can add an alert message.
+            alert = None
+            if data["blast_furnace"]["bf_temperature"] > 1550:
+                alert = "Blast Furnace temperature exceeding safe threshold!"
+
+            # Send data to client
+            await websocket.send_json({
+                "timestamp": time.time(),
+                "data": data,
+                "alert": alert,
+            })
+
+            # Wait before sending the next update
+            await asyncio.sleep(2)
     except WebSocketDisconnect:
         active_connections.remove(websocket)
+    except Exception as e:
+        # Handle unexpected exceptions
+        active_connections.remove(websocket)
+        print(f"WebSocket error: {e}")
 
-if __name__ == "__main__":
+if __name__ == "__main__":  
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

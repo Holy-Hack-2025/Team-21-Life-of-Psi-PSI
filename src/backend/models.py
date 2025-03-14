@@ -40,7 +40,14 @@ class Conversations:
         with self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
             cursor.execute("SELECT * FROM public.conversation")
             rows = cursor.fetchall()
-            return [dict(row) for row in rows]  # Convert to JSON format
+            return [dict(row) for row in rows]  # Convert to JSON format'
+    
+    def get_conversation(self, id):
+        with self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
+            cursor.execute("SELECT * FROM public.conversation WHERE id = %s", (id,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+        
         
     def insert(self, conversation):
         with self.conn.cursor() as cursor:
@@ -49,8 +56,8 @@ class Conversations:
                 VALUES (%s)
                 RETURNING id;
             ''', (psycopg2.extras.Json(conversation),))
-        new_id = cursor.fetchone()[0]
-        self.conn.commit()
+            new_id = cursor.fetchone()[0]
+            self.conn.commit()
         return new_id
 
     def update(self, id, conversation):
@@ -80,4 +87,4 @@ db_params = {
 
 print(db_params)
 
-portfolio_db = Conversations(db_params)
+conversation_db = Conversations(db_params)

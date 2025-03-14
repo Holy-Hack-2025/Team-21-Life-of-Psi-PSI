@@ -1,6 +1,6 @@
 from qdrant_client import QdrantClient
 from qdrant_client.models import VectorParams, Distance, PointStruct, Filter, FieldCondition, MatchValue
-from app.tools import get_openai_embeddings, QDRANT_CLIENT_HOST
+from tools import get_openai_embeddings, QDRANT_CLIENT_HOST
 import uuid
 from celery import shared_task
 from qdrant_client.http.exceptions import ApiException
@@ -70,7 +70,6 @@ def upsert_task(chunks, source: str, collection_name: str):
 
 async def query(query: str, collection_name: str, top_k=5, source: str=None):
     client = get_client()
-    # Generate the embedding for the query
     embedding = await get_openai_embeddings([query])
 
     # # Define a filter
@@ -83,16 +82,20 @@ async def query(query: str, collection_name: str, top_k=5, source: str=None):
     #     ]
     # )
     # Perform the search with filtering
-    results = client.search(
-        collection_name=collection_name,
-        query_vector=embedding[0].tolist(),
-        limit=top_k,
-        with_payload=True,
-        
-        # filter=my_filter,
-    )
-    return results
+    try:
+        results = client.search(
+            collection_name=collection_name,
+            query_vector=embedding[0].tolist(),
+            limit=top_k,
+            with_payload=True,
+            # filter=my_filter,
+        )
+        return results
 
+    except Exception as e:
+        logger.error(f"Error searching vectors: {e}")
+        return []
+    
 def delete_collection(collection_name: str):
     client = get_client()
     try:
