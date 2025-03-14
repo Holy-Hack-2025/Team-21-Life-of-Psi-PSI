@@ -35,45 +35,50 @@ class Conversations:
             finally:
                 self.conn.autocommit = False  # Reset autocommit
 
-
     def get_all(self):
         with self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
             cursor.execute("SELECT * FROM public.conversation")
             rows = cursor.fetchall()
-            return [dict(row) for row in rows]  # Convert to JSON format'
+            return [dict(row) for row in rows]  # Convert to JSON format
     
-    def get_conversation(self, id):
+    def get_conversation(self, conversation_id):
+        # Use the primary key column "id" instead of conversation_id
         with self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
-            cursor.execute("SELECT * FROM public.conversation WHERE id = %s", (id,))
+            cursor.execute("SELECT * FROM public.conversation WHERE id = %s", (conversation_id,))
             row = cursor.fetchone()
             return dict(row) if row else None
         
-        
     def insert(self, conversation):
         with self.conn.cursor() as cursor:
-            cursor.execute('''
-                INSERT INTO public.conversation (conversation)
-                VALUES (%s)
-                RETURNING id;
-            ''', (psycopg2.extras.Json(conversation),))
-            new_id = cursor.fetchone()[0]
-            self.conn.commit()
-        return new_id
+            try:
+                cursor.execute('''
+                    INSERT INTO public.conversation (conversation)
+                    VALUES (%s)
+                    RETURNING id;
+                ''', (psycopg2.extras.Json(conversation),))
+                new_id = cursor.fetchone()[0]
+                self.conn.commit()
+                return new_id
+            except Exception as e:
+                self.conn.rollback()  # Roll back the aborted transaction
+                raise e
 
-    def update(self, id, conversation):
+
+    def update(self, conversation_id, conversation):
+        # Update based on the "id" column
         with self.conn.cursor() as cursor:
             cursor.execute('''
                 UPDATE public.conversation
                 SET conversation = %s
                 WHERE id = %s
-            ''', (psycopg2.extras.Json(conversation), id))
+            ''', (psycopg2.extras.Json(conversation), conversation_id))
         self.conn.commit()
 
-    def delete(self, id):
+    def delete(self, conversation_id):
         with self.conn.cursor() as cursor:
             cursor.execute('''
                 DELETE FROM public.conversation WHERE id = %s
-            ''', (id,))
+            ''', (conversation_id,))
         self.conn.commit()
         return cursor.rowcount > 0  # Return True if delete was successful
 

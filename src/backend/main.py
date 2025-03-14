@@ -28,30 +28,49 @@ app.add_middleware(
     allow_headers=["*"],  
 )
 
-    
 @app.post("/get_openai_answer")
 async def get_openai_answer(item: Conversation):
     conversation_id = item.conversation_id
     message = item.message
 
     if conversation_id:
-        db_conversation = conversation_db.get_conversation(conversation_id)
-        db_conversation.update({"role": "user", "content": item.message})
-        conversation = db_conversation
+        db_row = conversation_db.get_conversation(conversation_id)
+        if db_row is None:
+            # If no conversation is found with the provided ID, create a new conversation.
+            conversation = [
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": message}
+            ]
+        else:
+            # Extract the conversation list from the returned dictionary.
+            conversation = db_row.get("conversation", [])
+            conversation.append({"role": "user", "content": message})
     else:
-        conversation_id = uuid.uuid4().hex
+        # No conversation_id provided; create a new conversation.
         conversation = [
             {"role": "system", "content": "You are a helpful assistant."},
             {"role": "user", "content": message}
         ]
-        context = await query(message, 'text_collection')
-        conversation.append({"role": "system", "content": f'Use the following context: {context}'})
+        conversation_id = None
 
-        openai_response = await call_openai_api(conversation)
-        conversation.append({"role": "assistant", "content": openai_response})
-        conversation_db.insert(conversation)
+    # Add context and call OpenAI API.
+    context = await query(message, 'text_collection')
+    conversation.append({"role": "system", "content": f'Use the following context: {context}'})
 
-    return {"message": "Response generated successfully", "answer": openai_response, 'conversation_id': conversation_id}
+    openai_response = await call_openai_api(conversation)
+    conversation.append({"role": "assistant", "content": openai_response})
+    
+    # Update or insert the conversation into the DB.
+    if conversation_id:
+        conversation_db.update(conversation_id, conversation)
+    else:
+        conversation_id = conversation_db.insert(conversation)
+
+    return {
+        "message": "Response generated successfully",
+        "answer": openai_response,
+        "conversation_id": conversation_id
+    }
 
 @app.post("/add_data")
 async def add_data(item: FileItem):
